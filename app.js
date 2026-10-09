@@ -1,5 +1,5 @@
 import {rateGame,RATING_VERSION} from './rating.js';
-import {extractStats,scoreHTML,overviewHTML,teamStatsHTML,availableGroups,playerStatsHTML,PLAYER_GROUPS} from './stats.js';
+import {recordHTML,extractStats,scoreHTML,overviewHTML,teamStatsHTML,availableGroups,playerStatsHTML,PLAYER_GROUPS} from './stats.js';
 const $=id=>document.getElementById(id), API='https://site.api.espn.com/apis/site/v2/sports/football/nfl/';
 const STORAGE='football-user-v1', CACHE='football-feed-v1';
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))||fallback}catch{return fallback}};
@@ -60,9 +60,11 @@ let statsController=null,statsGeneration=0,statsTab='overview',statsCategory='pa
 const statsCache=new Map(),revealOverrides=new Map();
 function isRevealed(id){return revealOverrides.has(id)?revealOverrides.get(id):!!user.watched[id];}
 function cacheStats(id,summary){const data=extractStats(summary);if(data)statsCache.set(id,data);return data;}
+function teamRecordHTML(g,t){return isRevealed(g.id)?recordHTML(statsCache.get(g.id)?.teams.find(team=>team.id===t.id)?.record):'';}
+function updateDialogMatchup(){if(!selectedGame)return;const g=selectedGame,a=g.teams.find(t=>t.side==='away')||g.teams[0],h=g.teams.find(t=>t.side==='home')||g.teams[1];$('dialogMatchup').innerHTML=escape(a.name)+teamRecordHTML(g,a)+' at '+escape(h.name)+teamRecordHTML(g,h);}
 function cardScoreHTML(g){if(!isRevealed(g.id))return '';const data=statsCache.get(g.id);return data?`<span class="card-score"><span>${escape(data.teams[0].abbr)} ${escape(data.teams[0].score)} · ${escape(data.teams[1].abbr)} ${escape(data.teams[1].score)}</span><small>${escape(data.status)}</small></span>`:'<span class="card-score small">Stats revealed · Tap to view</span>';}
 function renderStats(){
- if(!selectedGame)return;const revealed=isRevealed(selectedGame.id);
+ if(!selectedGame)return;updateDialogMatchup();const revealed=isRevealed(selectedGame.id);
  $('revealStats').textContent=revealed?'Hide Stats':'Reveal Stats';$('revealStats').setAttribute('aria-expanded',String(revealed));
  $('spoilerNote').classList.toggle('hidden',revealed);$('statsPanel').classList.toggle('hidden',!revealed);$('gameDialog').classList.toggle('stats-open',revealed);
  if(!revealed){$('statsScoreboard').innerHTML='';$('statsContent').innerHTML='';$('statsMessage').textContent='';$('statsTabs').classList.add('hidden');$('playerCategoryRow').classList.add('hidden');$('statsUpdated').textContent='';return;}
@@ -112,7 +114,7 @@ function breakdown(r){return `<div class="breakdown">${['drama','action'].map(k=
 function ratingHTML(g){const r=ratingFor(g);if(!r)return `<div class="rating-row"><span class="unrated">${g.state==='pre'?'Not started':g.state==='in'?'In progress · Rating not ready':'Rating unavailable'}</span></div>`;
 return `<div class="rating-row"><div><span class="rating-word">${label(r)}</span><span class="rating-caption">${r.provisional?'In progress · Provisional rating':r.confidence==='basic'?'Basic rating':'Worth watching'}</span></div><span class="rating-value">${r.overall.toFixed(1)}<small>/10</small></span></div>${user.preferences.showBreakdown?breakdown(r):''}`}
 function teamBadge(t){const id=String(t.id);return /^\d{1,2}$/.test(id)?`<span class="team-badge team-logo"><img src="logos/${id}.png" alt="" width="46" height="46" loading="lazy"><span class="logo-fallback">${escape(t.abbr)}</span></span>`:`<span class="team-badge">${escape(t.abbr)}</span>`;}
-function gameCard(g){const away=g.teams.find(t=>t.side==='away')||g.teams[0],home=g.teams.find(t=>t.side==='home')||g.teams[1];return `<button class="game-card" data-game="${escape(g.id)}" aria-label="${escape(away.name+' at '+home.name+', '+dateLabel(g.date))}"><span class="game-date"><span>${escape(dateLabel(g.date))}</span>${user.watched[g.id]?'<span class="watched-chip">✓ Watched</span>':''}</span><span class="game-teams"><span class="team">${teamBadge(away)}<span class="team-name">${escape(away.name)}<small>${escape(away.city)}</small></span></span><span class="small">at</span><span class="team">${teamBadge(home)}<span class="team-name">${escape(home.name)}<small>${escape(home.city)}</small></span></span></span>${ratingHTML(g)}${cardScoreHTML(g)}</button>`}
+function gameCard(g){const away=g.teams.find(t=>t.side==='away')||g.teams[0],home=g.teams.find(t=>t.side==='home')||g.teams[1];return `<button class="game-card" data-game="${escape(g.id)}" aria-label="${escape(away.name+' at '+home.name+', '+dateLabel(g.date))}"><span class="game-date"><span>${escape(dateLabel(g.date))}</span>${user.watched[g.id]?'<span class="watched-chip">✓ Watched</span>':''}</span><span class="game-teams"><span class="team">${teamBadge(away)}<span class="team-name">${escape(away.name)}${teamRecordHTML(g,away)}<small>${escape(away.city)}</small></span></span><span class="small">at</span><span class="team">${teamBadge(home)}<span class="team-name">${escape(home.name)}${teamRecordHTML(g,home)}<small>${escape(home.city)}</small></span></span></span>${ratingHTML(g)}${cardScoreHTML(g)}</button>`}
 function render(){let ordered=[...games];if($('sort').value==='rating')ordered.sort((a,b)=>(ratingFor(b)?.overall??-1)-(ratingFor(a)?.overall??-1)||new Date(a.date)-new Date(b.date));else ordered.sort((a,b)=>new Date(a.date)-new Date(b.date));
  $('listCount').textContent=`${games.length} game${games.length===1?'':'s'}`;
  $('gameList').innerHTML=ordered.length?ordered.map(gameCard).join(''):'<div class="empty"><h3>No games found</h3><p>Try another week or season.</p></div>';
@@ -176,3 +178,4 @@ document.addEventListener('error',e=>{if(e.target?.matches?.('.team-logo img'))e
 $('sort').value=user.sort==='rating'?'rating':'date';applyPreferences();setTab(user.tab);initialize();
 // Expose only the same spoiler-free game fields as the visible interface.
 if(document.modelContext?.registerTool){try{const lifecycle=new AbortController();window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});Promise.resolve(document.modelContext.registerTool({name:'get_spoiler_free_games',title:'Get spoiler-free game ratings',description:'Read the selected week’s NFL matchups and watch recommendations, without scores or game events.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute(input){if(!input||typeof input!=='object'||Object.keys(input).length)throw Error('No input fields expected.');return games.map(g=>({id:g.id,date:g.date,teams:g.teams.map(t=>t.name),rating:ratingFor(g)?.overall??null,provisional:ratingFor(g)?.provisional??null}));}},{signal:lifecycle.signal})).catch(()=>{});}catch{}}
+
