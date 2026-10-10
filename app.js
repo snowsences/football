@@ -1,6 +1,6 @@
-import {initSeasonStats} from './season-stats.js';
+import {initSeasonStats} from './season-stats.js?v=7';
 import {rateGame,RATING_VERSION} from './rating.js';
-import {recordHTML,extractStats,scoreHTML,overviewHTML,teamStatsHTML,playerSectionHTML} from './stats.js';
+import {recordHTML,extractStats,scoreHTML,overviewHTML,teamStatsHTML,playerSectionHTML} from './stats.js?v=7';
 const $=id=>document.getElementById(id), API='https://site.api.espn.com/apis/site/v2/sports/football/nfl/';
 const STORAGE='football-user-v1', CACHE='football-feed-v1';
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))||fallback}catch{return fallback}};
