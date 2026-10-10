@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "linkedom": "^0.18.12"
+  },
+  "name": "football-pwa",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

@@ -19,7 +19,7 @@ Game information comes directly from ESPN's unofficial, publicly accessible JSON
 
 All 32 logos and both font weights are included locally. The service worker caches the app shell. Live game updates need an internet connection; saved matchups and ratings can be viewed offline.
 
-Watched games, personal ratings, settings, and cached ratings stay in this browser on this device. There is no account or cross-device sync. Use Settings → Export backup / Import backup to move watched games and settings.
+Watched games, settings, and cached ratings stay in this browser on this device. There is no account or cross-device sync. Use Settings → Export backup / Import backup to move watched games and settings.
 
 If moving from the ChatGPT-hosted version, export your backup there first and import it on the GitHub Pages version. Different website addresses have separate local storage.
 
@@ -38,3 +38,11 @@ Best Games includes only regular-season and playoff games, including when an old
 Tap any game and choose Reveal Stats to view its score, quarter scoring, scoring summary, team comparison, and basic player box scores. Marking a game watched reveals these automatically. Hide Stats conceals the game again during that session. Removing its watched mark conceals its stats. Manual reveal choices apply to the current session; watched marks persist.
 
 Stats use ESPN's box-score feed rather than Google. Standard categories cover passing, rushing, receiving, defense, interceptions, fumbles, kicking, punting, and returns; advanced QBR is omitted. Unavailable data is shown clearly. Revealed live stats refresh every 30 seconds while the details are open and Auto-refresh is enabled.
+
+## Season Stats
+
+Stats is the fourth tab, with Settings fifth. Choose any NFL team (49ers by default), season, and regular-season week cutoff. The app loads completed games from that team's ESPN schedule and aggregates player box scores. Passing and rushing trends, receiving leaders, touchdown leaders, and all standard player-stat tables use actual loaded box scores. Rates are calculated from cumulative attempts/receptions, and longest plays use the maximum. Missing games are reported as partial totals. Refresh retries and updates the data; recent team-season data is cached on this device. Preseason and playoffs are excluded from season totals.
+
+The game modal locks background scrolling. Its player subtabs group Offense, Defense, and Special Teams. Personal game ratings have been removed; older backups remain importable.
+
+Validation: `npm ci` then `npm test` (development checks only; deployment needs no build).

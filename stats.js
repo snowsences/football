@@ -53,7 +53,7 @@ export function extractStats(summary){
  }).sort((a,b)=>(a.side==='away'?0:1)-(b.side==='away'?0:1));
  const players=(summary.boxscore?.players||[]).map(r=>({teamId:text(r.team?.id),teamName:text(r.team?.displayName||r.team?.name),groups:(r.statistics||[]).filter(s=>PLAYER_GROUPS[s.name]).map(s=>{
   const columns=(s.labels||[]).map((label,i)=>({label:text(label),title:text(s.descriptions?.[i]||label),i,key:s.keys?.[i]})).filter(c=>c.key!=='adjQBR'&&c.label!=='QBR');
-  return {key:s.name,name:PLAYER_GROUPS[s.name],columns:columns.map(({label,title,key})=>({label,title,key})),rows:(s.athletes||[]).map(a=>({name:text(a.athlete?.displayName||a.athlete?.shortName),values:columns.map(c=>val(a.stats?.[c.i]))})),totals:Array.isArray(s.totals)?columns.map(c=>val(s.totals[c.i])):[]};
+  return {key:s.name,name:PLAYER_GROUPS[s.name],columns:columns.map(({label,title,key})=>({label,title,key})),rows:(s.athletes||[]).map(a=>({id:text(a.athlete?.id||''),position:text(a.athlete?.position?.abbreviation||''),name:text(a.athlete?.displayName||a.athlete?.shortName),values:columns.map(c=>val(a.stats?.[c.i]))})),totals:Array.isArray(s.totals)?columns.map(c=>val(s.totals[c.i])):[]};
  })}));
  const scoring=(summary.scoringPlays||[]).map(p=>({teamId:text(p.team?.id),abbr:text(p.team?.abbreviation),period:Number(p.period?.number)||0,clock:text(p.clock?.displayValue||''),description:text(p.text||p.type?.text),away:val(p.awayScore),home:val(p.homeScore)}));
  const status=competition.status?.type;
@@ -93,4 +93,10 @@ export function playerStatsHTML(data,category){
  if(group.totals.length)rows.push(['Team total',...group.totals.map((v,i)=>statHTML(v,team,totalLeaders.get(columnId(group.columns[i]))?.has(teamIndex)))]);
  return `<section class="player-team-section"><h3>${esc(team.name)}${recordHTML(team.record)}</h3>${table(headers,rows,team.name+' '+group.name)}</section>`;
  }).join('');
+}
+
+export const PLAYER_SECTIONS={offense:['passing','rushing','receiving','fumbles'],defense:['defensive'],special:['kicking','punting','kickReturns','puntReturns']};
+export function playerSectionHTML(data,section){
+ const groups=(PLAYER_SECTIONS[section]||PLAYER_SECTIONS.offense).filter(key=>data.players.some(p=>p.groups.some(g=>g.key===key&&g.rows.length)));
+ return groups.length?groups.map(key=>`<section class="player-group-section"><h3 class="player-group-title">${PLAYER_GROUPS[key]}</h3>${playerStatsHTML(data,key)}</section>`).join(''):'<p class="small">No stats available for this category yet.</p>';
 }
