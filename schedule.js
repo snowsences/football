@@ -10,7 +10,7 @@ export function scheduleEvents(response,year,team,type){
 export function initSchedule({fetchJSON,year,selection,onSelection,parseGame,gameCard,stageLabel,cache,onCache}){
  const valid=selection||{};let team=NFL_TEAMS.some(([id])=>id===valid.team)?valid.team:'25',season=Number.isInteger(valid.year)&&valid.year>=2002&&valid.year<=year?valid.year:year,preseason=valid.preseason===true;
  let games=[],controller=null,generation=0,active=false;
- cache.teamSchedules=cache.teamSchedules||{};
+ if(cache.teamScheduleVersion!==1){cache.teamSchedules={};cache.teamScheduleVersion=1;}cache.teamSchedules=cache.teamSchedules||{};
  $('scheduleSeason').innerHTML=Array.from({length:year-2001},(_,i)=>`<option value="${year-i}">${year-i}</option>`).join('');$('scheduleSeason').value=String(season);$('schedulePreseason').checked=preseason;
  $('scheduleTeams').innerHTML=NFL_TEAMS.map(([id,name])=>`<button type="button" role="tab" data-schedule-team="${id}" aria-label="${esc(name)}" aria-controls="scheduleList" aria-selected="${id===team}" tabindex="${id===team?0:-1}"><img src="logos/${id}.png" width="26" height="26" alt=""><span>${esc(name.split(' ').at(-1))}</span></button>`).join('');
  const persist=()=>onSelection({team,year:season,preseason});

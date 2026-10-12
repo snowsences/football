@@ -1,4 +1,4 @@
-import {initSchedule} from './schedule.js?v=12';
+import {initSchedule} from './schedule.js?v=13';
 import {initSeasonStats} from './season-stats.js?v=7';
 import {rateGame,RATING_VERSION} from './rating.js';
 import {recordHTML,extractStats,scoreHTML,overviewHTML,teamStatsHTML,playerSectionHTML} from './stats.js?v=7';
@@ -118,7 +118,7 @@ const timeFormat=new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-dig
 function dateLabel(date){const d=new Date(date);return Number.isNaN(d.getTime())?'Date unavailable':dateFormat.format(d)+' · '+timeFormat.format(d)}
 function safeEvent(e,meta={}){
  const c=e.competitions?.[0];if(!c||!/^\d+$/.test(e.id))return null;
- const teams=(c.competitors||[]).map(t=>({id:String(t.team?.id||''),name:String(t.team?.name||t.team?.displayName||'Team'),city:String(t.team?.location||''),abbr:String(t.team?.abbreviation||''),side:t.homeAway}));
+ const teams=(c.competitors||[]).map(t=>({id:String(t.team?.id||''),name:String(t.team?.name||t.team?.nickname||t.team?.shortDisplayName||t.team?.displayName||'Team'),city:String(t.team?.location||''),abbr:String(t.team?.abbreviation||''),side:t.homeAway}));
  if(teams.length!==2)return null;
  cacheCardStats(e.id,extractStats({header:{competitions:[c]}}));
  return {id:e.id,date:e.date,teams,state:c.status?.type?.state||e.status?.type?.state||'pre',season:Number(e.season?.year||meta.season||$('season').value),seasonType:Number(e.seasonType?.type||e.seasonType?.id||e.season?.type||meta.type||2),week:Number(e.week?.number||meta.week||1)};
