@@ -43,7 +43,7 @@ async function loadBest({forceSchedule=false}={}){
    all=[...map.values()];cache.seasons[year]={games:all,time:Date.now(),scheduleComplete:missingWeeks===0,scheduleVersion:2};saveCache();renderBest();
   }
   const finished=all.filter(g=>g.state==='post'&&eligibleBest(g));
-  const queue=finished.filter(g=>{const record=cache.ratings[g.id];return !record||record.rating?.version!==RATING_VERSION||record.rating?.provisional||(!record.rating&&Date.now()-record.time>900000);});
+  const queue=finished.filter(g=>{const record=cache.ratings[g.id];return (isRevealed(g.id)&&!cardData(g.id))||!record||record.rating?.version!==RATING_VERSION||record.rating?.provisional||(!record.rating&&Date.now()-record.time>900000);});
   const total=finished.length;let attempted=total-queue.length,failures=0,sinceSave=0;
   $('bestProgress').max=Math.max(1,total);$('bestProgress').value=attempted;
   const progress=()=>{$('bestStatus').textContent=`Analyzing ${year} season · ${attempted} of ${total} completed games`;$('bestProgress').value=attempted;};progress();
@@ -65,7 +65,7 @@ const statsCache=new Map();
 function isRevealed(id){return user.revealed[id]===true||!!user.watched[id];}
 function cacheCardStats(id,data){if(!data)return;cache.cardStats[id]={teams:data.teams.map(({id,abbr,side,score,record})=>({id,abbr,side,score,record})),state:data.state,updatedAt:data.updatedAt};}
 function cardData(id){return cache.cardStats[id]||statsCache.get(id);}
-function cacheStats(id,summary){const data=extractStats(summary);if(data){statsCache.set(id,data);cacheCardStats(id,data);saveCache();}return data;}
+function cacheStats(id,summary){const data=extractStats(summary);if(data){statsCache.set(id,data);cacheCardStats(id,data);}return data;}
 function teamRecordHTML(g,t){return isRevealed(g.id)?recordHTML(cardData(g.id)?.teams.find(team=>team.id===t.id)?.record):'';}
 function updateDialogMatchup(){if(!selectedGame)return;const g=selectedGame,a=g.teams.find(t=>t.side==='away')||g.teams[0],h=g.teams.find(t=>t.side==='home')||g.teams[1];$('dialogMatchup').innerHTML=escape(a.name)+teamRecordHTML(g,a)+' at '+escape(h.name)+teamRecordHTML(g,h);}
 function cardScoreHTML(g){
@@ -94,7 +94,7 @@ async function loadStats({force=false}={}){
  if(cached&&!force&&(cached.state==='post'||Date.now()-cached.updatedAt<30000)){$('statsMessage').textContent='';renderStats();return;}
  const requestController=new AbortController();statsController=requestController;$('statsMessage').textContent=cached?'Updating stats…':'Loading stats…';renderStats();
  try{const summary=await fetchJSON(`summary?event=${g.id}`,AbortSignal.any([requestController.signal,AbortSignal.timeout(15000)]));if(generation!==statsGeneration||selectedGame?.id!==g.id||!isRevealed(g.id)||!$('gameDialog').open)return;
-  const data=cacheStats(g.id,summary);if(!data)throw new Error('Stats unavailable');$('statsMessage').textContent='';renderStats();render();
+  const data=cacheStats(g.id,summary);if(!data)throw new Error('Stats unavailable');saveCache();$('statsMessage').textContent='';renderStats();render();
  }catch(e){if(requestController.signal.aborted||generation!==statsGeneration||selectedGame?.id!==g.id||!isRevealed(g.id))return;$('statsMessage').textContent=cached?'Could not update stats. Showing the last loaded data.':'Stats are unavailable right now. Try Refresh Stats.';renderStats();}
 }
 function revealStats(){if(!selectedGame||isRevealed(selectedGame.id))return;user.revealed[selectedGame.id]=true;saveUser();statsController?.abort();statsGeneration++;renderStats();render();loadStats();}
