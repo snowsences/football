@@ -8,7 +8,7 @@ let user=read(STORAGE,{preferences:{showBreakdown:false,autoRefresh:true,theme:'
 user.preferences={showBreakdown:false,autoRefresh:true,theme:'dark',...user.preferences};user.watched=user.watched||{};
 user.revealed=Object.fromEntries(Object.entries(user.revealed||{}).filter(([id,value])=>/^\d+$/.test(id)&&value===true));
 for(const id of Object.keys(user.watched))user.revealed[id]=true;
-let cache=read(CACHE,{weeks:{},ratings:{}});cache.weeks=cache.weeks||{};cache.ratings=cache.ratings||{};cache.seasons=cache.seasons||{};
+let cache=read(CACHE,{weeks:{},ratings:{}});cache.weeks=cache.weeks||{};cache.ratings=cache.ratings||{};cache.seasons=cache.seasons||{};cache.cardStats=cache.cardStats||{};
 let seasonDashboard=null;
 let games=[],scope=0,busy=false,controller=null,selectedGame=null,current=null,installPrompt=null;
 let bestController=null,bestGeneration=0,bestBusy=false,bestRunningYear=null;
@@ -63,10 +63,18 @@ $('bestPause').onclick=()=>{if(bestBusy)bestController?.abort();else loadBest();
 let statsController=null,statsGeneration=0,statsTab='overview',statsCategory='offense';
 const statsCache=new Map();
 function isRevealed(id){return user.revealed[id]===true||!!user.watched[id];}
-function cacheStats(id,summary){const data=extractStats(summary);if(data)statsCache.set(id,data);return data;}
-function teamRecordHTML(g,t){return isRevealed(g.id)?recordHTML(statsCache.get(g.id)?.teams.find(team=>team.id===t.id)?.record):'';}
+function cacheCardStats(id,data){if(!data)return;cache.cardStats[id]={teams:data.teams.map(({id,abbr,side,score,record})=>({id,abbr,side,score,record})),state:data.state,updatedAt:data.updatedAt};}
+function cardData(id){return cache.cardStats[id]||statsCache.get(id);}
+function cacheStats(id,summary){const data=extractStats(summary);if(data){statsCache.set(id,data);cacheCardStats(id,data);saveCache();}return data;}
+function teamRecordHTML(g,t){return isRevealed(g.id)?recordHTML(cardData(g.id)?.teams.find(team=>team.id===t.id)?.record):'';}
 function updateDialogMatchup(){if(!selectedGame)return;const g=selectedGame,a=g.teams.find(t=>t.side==='away')||g.teams[0],h=g.teams.find(t=>t.side==='home')||g.teams[1];$('dialogMatchup').innerHTML=escape(a.name)+teamRecordHTML(g,a)+' at '+escape(h.name)+teamRecordHTML(g,h);}
-function cardScoreHTML(g){if(!isRevealed(g.id))return '';const data=statsCache.get(g.id);return data?`<span class="card-score"><span>${escape(data.teams[0].abbr)} ${escape(data.teams[0].score)} · ${escape(data.teams[1].abbr)} ${escape(data.teams[1].score)}</span><small>${escape(data.status)}</small></span>`:'<span class="card-score small">Stats revealed · Tap to view</span>';}
+function cardScoreHTML(g){
+ if(!isRevealed(g.id))return '';const data=cardData(g.id),away=data?.teams.find(t=>t.side==='away')||data?.teams[0],home=data?.teams.find(t=>t.side==='home')||data?.teams[1];
+ const state=data?.state||g.state,status=state==='post'?'Final':state==='in'?'In progress':'Not started';
+ const score=state!=='pre'&&away&&home&&/^\d+$/.test(away.score)&&/^\d+$/.test(home.score)?`${escape(away.abbr)} ${escape(away.score)} · ${escape(home.abbr)} ${escape(home.score)}`:state==='pre'?'Not started':'Score unavailable';
+ return `<span class="card-result"><span class="card-score">${score}</span><small class="card-status">${status}</small></span>`;
+}
+function leadingTeam(g){if(!isRevealed(g.id))return null;const data=cardData(g.id);if(!data||!['in','post'].includes(data.state)||data.teams.length!==2)return null;const [a,b]=data.teams;if(!/^\d+$/.test(a.score)||!/^\d+$/.test(b.score)||Number(a.score)===Number(b.score))return null;return Number(a.score)>Number(b.score)?a.id:b.id;}
 function renderStats(){
  if(!selectedGame)return;updateDialogMatchup();const revealed=isRevealed(selectedGame.id);
  $('revealStats').classList.toggle('hidden',revealed);$('revealStats').setAttribute('aria-expanded',String(revealed));
@@ -101,26 +109,28 @@ $('gameDialog').addEventListener('close',()=>{unlockGameScroll();statsController
 setInterval(()=>{if(!document.hidden&&user.preferences.autoRefresh&&selectedGame&&$('gameDialog').open&&isRevealed(selectedGame.id)&&statsCache.get(selectedGame.id)?.state!=='post')loadStats({force:true});},30000);
 
 const saveUser=()=>{try{localStorage.setItem(STORAGE,JSON.stringify(user))}catch{$('backupNotice').textContent='This browser could not save your changes. Export a backup to keep them.'}};
-function saveCache(){try{const entries=Object.entries(cache.weeks).sort((a,b)=>b[1].time-a[1].time);cache.weeks=Object.fromEntries(entries.slice(0,96));const ratings=Object.entries(cache.ratings).sort((a,b)=>b[1].time-a[1].time);cache.ratings=Object.fromEntries(ratings.slice(0,1800));cache.seasons=Object.fromEntries(Object.entries(cache.seasons).sort((a,b)=>b[1].time-a[1].time).slice(0,3));localStorage.setItem(CACHE,JSON.stringify(cache))}catch{}}
+function saveCache(){try{const entries=Object.entries(cache.weeks).sort((a,b)=>b[1].time-a[1].time);cache.weeks=Object.fromEntries(entries.slice(0,96));const ratings=Object.entries(cache.ratings).sort((a,b)=>b[1].time-a[1].time);cache.ratings=Object.fromEntries(ratings.slice(0,1800));cache.seasons=Object.fromEntries(Object.entries(cache.seasons).sort((a,b)=>b[1].time-a[1].time).slice(0,3));cache.cardStats=Object.fromEntries(Object.entries(cache.cardStats).sort((a,b)=>b[1].updatedAt-a[1].updatedAt).slice(0,1800));localStorage.setItem(CACHE,JSON.stringify(cache))}catch{}}
 function escape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const seasonYear=()=>{const d=new Date();return d.getMonth()<2?d.getFullYear()-1:d.getFullYear()};
 const dateFormat=new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',weekday:'short'});
 const timeFormat=new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'});
 function dateLabel(date){const d=new Date(date);return Number.isNaN(d.getTime())?'Date unavailable':dateFormat.format(d)+' · '+timeFormat.format(d)}
-function label(r){return r.overall>=8?'Highly recommended':r.overall>=6.5?'Worth watching':r.overall>=4.5?'Maybe worth watching':'Easy to skip'}
 function safeEvent(e,meta={}){
  const c=e.competitions?.[0];if(!c||!/^\d+$/.test(e.id))return null;
  const teams=(c.competitors||[]).map(t=>({id:String(t.team?.id||''),name:String(t.team?.name||t.team?.displayName||'Team'),city:String(t.team?.location||''),abbr:String(t.team?.abbreviation||''),side:t.homeAway}));
  if(teams.length!==2)return null;
+ cacheCardStats(e.id,extractStats({header:{competitions:[c]}}));
  return {id:e.id,date:e.date,teams,state:c.status?.type?.state||e.status?.type?.state||'pre',season:Number(e.season?.year||meta.season||$('season').value),seasonType:Number(e.season?.type||meta.type||2),week:Number(e.week?.number||meta.week||1)};
 }
 async function fetchJSON(path,signal){const r=await fetch(API+path,{signal,cache:'no-store',referrerPolicy:'no-referrer'});if(!r.ok)throw Error('Feed unavailable');return r.json()}
 function ratingFor(g){return cache.ratings[g.id]?.rating||null}
 function breakdown(r){return `<div class="breakdown">${['drama','action'].map(k=>`<div><div class="breakdown-label"><span>${k==='drama'?'Drama':'Action'}</span><span>${r[k].toFixed(1)}</span></div><div class="meter"><span style="width:${r[k]*10}%"></span></div></div>`).join('')}</div>`}
-function ratingHTML(g){const r=ratingFor(g);if(!r)return `<div class="rating-row"><span class="unrated">${g.state==='pre'?'Not started':g.state==='in'?'In progress · Rating not ready':'Rating unavailable'}</span></div>`;
-return `<div class="rating-row"><div><span class="rating-word">${label(r)}</span><span class="rating-caption">${r.provisional?'In progress · Provisional rating':r.confidence==='basic'?'Basic rating':'Worth watching'}</span></div><span class="rating-value">${r.overall.toFixed(1)}<small>/10</small></span></div>${user.preferences.showBreakdown?breakdown(r):''}`}
+function ratingHTML(g){const r=ratingFor(g),result=cardScoreHTML(g);
+ const rating=r?`<span class="rating-value">${r.overall.toFixed(1)}<small>/10</small>${r.provisional?'<span class="rating-caption">Provisional</span>':''}</span>`:`<span class="unrated">${g.state==='pre'?'Not started':'Rating unavailable'}</span>`;
+ return `<div class="rating-row${result?' has-score':''}">${result}${rating}</div>${r&&user.preferences.showBreakdown?breakdown(r):''}`;
+}
 function teamBadge(t){const id=String(t.id);return /^\d{1,2}$/.test(id)?`<span class="team-badge team-logo"><img src="logos/${id}.png" alt="" width="46" height="46" loading="lazy"><span class="logo-fallback">${escape(t.abbr)}</span></span>`:`<span class="team-badge">${escape(t.abbr)}</span>`;}
-function gameCard(g){const away=g.teams.find(t=>t.side==='away')||g.teams[0],home=g.teams.find(t=>t.side==='home')||g.teams[1];return `<button class="game-card" data-game="${escape(g.id)}" aria-label="${escape(away.name+' at '+home.name+', '+dateLabel(g.date))}"><span class="game-date"><span>${escape(dateLabel(g.date))}</span>${user.watched[g.id]?'<span class="watched-chip">✓ Watched</span>':''}</span><span class="game-teams"><span class="team">${teamBadge(away)}<span class="team-name">${escape(away.name)}${teamRecordHTML(g,away)}<small>${escape(away.city)}</small></span></span><span class="small">at</span><span class="team">${teamBadge(home)}<span class="team-name">${escape(home.name)}${teamRecordHTML(g,home)}<small>${escape(home.city)}</small></span></span></span>${ratingHTML(g)}${cardScoreHTML(g)}</button>`}
+function gameCard(g){const away=g.teams.find(t=>t.side==='away')||g.teams[0],home=g.teams.find(t=>t.side==='home')||g.teams[1],leader=leadingTeam(g);return `<button class="game-card" data-game="${escape(g.id)}" aria-label="${escape(away.name+' at '+home.name+', '+dateLabel(g.date))}"><span class="game-date"><span>${escape(dateLabel(g.date))}</span>${user.watched[g.id]?'<span class="watched-chip">✓ Watched</span>':''}</span><span class="game-teams"><span class="team${leader===away.id?' team-leading':''}">${teamBadge(away)}<span class="team-name">${escape(away.name)}${teamRecordHTML(g,away)}<small>${escape(away.city)}</small></span></span><span class="small">at</span><span class="team${leader===home.id?' team-leading':''}">${teamBadge(home)}<span class="team-name">${escape(home.name)}${teamRecordHTML(g,home)}<small>${escape(home.city)}</small></span></span></span>${ratingHTML(g)}</button>`}
 function render(){let ordered=[...games];if($('sort').value==='rating')ordered.sort((a,b)=>(ratingFor(b)?.overall??-1)-(ratingFor(a)?.overall??-1)||new Date(a.date)-new Date(b.date));else ordered.sort((a,b)=>new Date(a.date)-new Date(b.date));
  $('listCount').textContent=`${games.length} game${games.length===1?'':'s'}`;
  $('gameList').innerHTML=ordered.length?ordered.map(gameCard).join(''):'<div class="empty"><h3>No games found</h3><p>Try another week or season.</p></div>';
