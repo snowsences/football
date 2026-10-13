@@ -1,5 +1,5 @@
-import {initSchedule,normalizeFavorites} from './schedule.js?v=16';
-import {initSeasonStats} from './season-stats.js?v=16';
+import {initSchedule,normalizeFavorites} from './schedule.js?v=17';
+import {initSeasonStats} from './season-stats.js?v=17';
 import {rateGame,RATING_VERSION} from './rating.js';
 import {recordHTML,extractStats,scoreHTML,overviewHTML,teamStatsHTML,playerSectionHTML} from './stats.js?v=7';
 const $=id=>document.getElementById(id), API='https://site.api.espn.com/apis/site/v2/sports/football/nfl/';
@@ -123,7 +123,7 @@ function safeEvent(e,meta={}){
  cacheCardStats(e.id,extractStats({header:{competitions:[c]}}));
  return {id:e.id,date:e.date,teams,state:c.status?.type?.state||e.status?.type?.state||'pre',season:Number(e.season?.year||meta.season||$('season').value),seasonType:Number(e.seasonType?.type||e.seasonType?.id||e.season?.type||meta.type||2),week:Number(e.week?.number||meta.week||1)};
 }
-async function fetchJSON(path,signal){const url=/^athletes\/\d+$/.test(path)?'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/'+path+'?lang=en&region=us':API+path;const r=await fetch(url,{signal,cache:'no-store',referrerPolicy:'no-referrer'});if(!r.ok)throw Error('Feed unavailable');return r.json()}
+async function fetchJSON(path,signal){const athlete=path.match(/^athletes\/(\d+)\?season=(\d{4})$/);const url=athlete?`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${athlete[2]}/athletes/${athlete[1]}?lang=en&region=us`:API+path;const r=await fetch(url,{signal,cache:'no-store',referrerPolicy:'no-referrer'});if(!r.ok)throw Error('Feed unavailable');return r.json()}
 function ratingFor(g){return cache.ratings[g.id]?.rating||null}
 function breakdown(r){return `<div class="breakdown">${['drama','action'].map(k=>`<div><div class="breakdown-label"><span>${k==='drama'?'Drama':'Action'}</span><span>${r[k].toFixed(1)}</span></div><div class="meter"><span style="width:${r[k]*10}%"></span></div></div>`).join('')}</div>`}
 function ratingHTML(g){const r=ratingFor(g),result=cardScoreHTML(g);

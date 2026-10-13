@@ -1,4 +1,4 @@
-import {NFL_TEAMS} from './season-stats.js?v=16';
+import {NFL_TEAMS} from './season-stats.js?v=17';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function scheduleEvents(response,year,team,type){
