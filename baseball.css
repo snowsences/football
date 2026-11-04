@@ -1,0 +1,21 @@
+.sport-switch{display:flex;gap:6px;margin:0 0 24px;width:max-content;padding:4px;background:var(--soft);border-radius:12px}
+.sport-switch a{display:block;color:var(--muted);text-decoration:none;padding:8px 20px;border-radius:8px;font-weight:600}
+.sport-switch a[aria-current="page"]{color:var(--ink);background:var(--surface)}
+.baseball-controls{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.baseball-controls label{display:grid;gap:5px;font-size:13px;color:var(--muted)}
+.baseball-controls input[type="date"]{font:inherit;font-size:16px;min-height:44px;padding:8px 10px;background:var(--surface);color:inherit;border:1px solid var(--line);border-radius:8px}
+.baseball-check{display:flex;gap:8px;align-items:center;font-size:14px}
+.baseball-favorites{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:12px}
+.baseball-app .game-card{height:auto}
+.baseball-app #mlbScheduleList{display:grid;gap:12px}
+.baseball-app .team-name{overflow-wrap:anywhere}
+.baseball-app .game-teams .team{min-width:0}
+.baseball-app .game-date{color:var(--muted);font-size:13px}
+#mlbDialog{width:min(760px,calc(100% - 28px));max-height:calc(100dvh - 40px)}
+#mlbDialog .close{position:absolute;right:14px;top:14px}
+#mlbBox h3{margin-top:22px}
+#mlbDialogTitle{padding-right:42px}
+.baseball-standings{margin:22px 0}
+html:has(#mlbDialog[open]){overflow:hidden}
+
+#mlbDialogRating:empty{display:none}

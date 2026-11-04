@@ -46,3 +46,17 @@ Stats is the fourth tab, with Settings fifth. Choose any NFL team (49ers by defa
 The game modal locks background scrolling. Its player subtabs group Offense, Defense, and Special Teams. Personal game ratings have been removed; older backups remain importable.
 
 Validation: `npm ci` then `npm test` (development checks only; deployment needs no build).
+
+### MLB
+
+Use the NFL / MLB switch at the top of the app. MLB starts with the Texas Rangers
+and Seattle Mariners as favorites. Games are organized by Eastern game date;
+Best Games ranks completed regular-season and postseason games in 7- or 30-day
+windows. The baseball rating weights sustained win-probability tension and late
+swings. Games with insufficient data remain unrated.
+
+Score and box-score reveals, watched games, favorite teams, and season-specific
+reveal dates are saved locally, separately from NFL preferences. Division
+standings require a separate reveal since they reflect the latest available
+results for the selected season. The MLB views use the same unofficial ESPN
+feed family and static hosting as the NFL views.

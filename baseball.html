@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a1e20"><meta name="referrer" content="no-referrer">
+<title>MLB · Football</title>
+<link rel="manifest" href="manifest.webmanifest?v=15"><link rel="icon" type="image/png" href="favicon-32.png?v=15">
+<link rel="stylesheet" href="styles.css?v=20"><link rel="stylesheet" href="baseball.css?v=22">
+<script type="module" src="baseball.js?v=22"></script>
+</head>
+<body>
+<main class="app baseball-app">
+<header class="top-header"><div class="brand"><img class="brand-icon" src="icon-192.png?v=15" alt="" width="38" height="38"><h1>Baseball</h1></div><span class="shield">Spoilers hidden by default</span></header>
+<nav class="sport-switch" aria-label="Sport"><a href="./">NFL</a><a href="baseball.html" aria-current="page">MLB</a></nav>
+<section id="mlbGames">
+<div class="page-heading"><h2>MLB Games</h2><button id="mlbRefresh" class="icon-button" aria-label="Refresh MLB games">↻</button></div>
+<div class="baseball-controls">
+<button id="mlbPrev" class="icon-button" aria-label="Previous day">‹</button>
+<label>Game date<input id="mlbDate" type="date"></label>
+<button id="mlbNext" class="icon-button" aria-label="Next day">›</button>
+<button id="mlbToday" class="button ghost">Today</button><button id="mlbLatest" class="button ghost">Latest played</button>
+</div>
+<div class="list-toolbar"><span id="mlbCount"></span><label class="baseball-check"><input id="mlbFavoritesOnly" type="checkbox"> Favorites only</label></div>
+<p class="small" role="status" id="mlbGamesStatus"></p><div id="mlbGameList" class="games-grid"></div>
+</section>
+<section id="mlbBest" class="hidden">
+<div class="page-heading"><h2>Best Games</h2></div>
+<div class="baseball-controls"><label>Ending on<input id="mlbBestDate" type="date"></label><label>Range<select id="mlbBestRange"><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label><button class="button primary" id="mlbRank">Find games</button></div>
+<p class="small">Ranks completed regular-season and postseason games by how competitive they were and how much the game swung late.</p>
+<label class="baseball-check"><input id="mlbBestFavorites" type="checkbox"> Favorites only</label>
+<p id="mlbBestStatus" class="small" role="status"></p><div id="mlbBestList" class="games-grid"></div>
+</section>
+<section id="mlbSchedule" class="hidden">
+<div class="page-heading"><h2>MLB Schedule</h2></div>
+<div class="baseball-controls"><label>Team<select id="mlbTeam"></select></label><label>Season<select id="mlbSeason"></select></label><button id="mlbTeamFavorite" class="button ghost"></button><button id="mlbJump" class="button ghost">Jump to next game</button></div>
+<p id="mlbScheduleStatus" class="small" role="status"></p><div id="mlbScheduleList"></div>
+</section>
+<section id="mlbStandings" class="hidden">
+<div class="page-heading"><h2>MLB Standings</h2></div>
+<div class="baseball-controls"><label>Season<select id="mlbStandingsYear"></select></label><button id="mlbShowStandings" class="button primary">Reveal standings</button></div>
+<p class="small" role="status" id="mlbStandingsStatus">Standings include results beyond your reveal date.</p><div id="mlbStandingsList"></div>
+</section>
+<section id="mlbSettings" class="hidden">
+<div class="page-heading"><h2>MLB Settings</h2></div>
+<div class="panel settings-panel"><h3>Scores &amp; stats</h3>
+<div class="baseball-controls"><label>Season<select id="mlbCutoffYear"></select></label><label>Reveal through date<input id="mlbCutoff" type="date" aria-describedby="mlbCutoffHint"></label><button id="mlbSaveCutoff" class="button primary">Save date</button></div>
+<p id="mlbCutoffHint" class="small">Reveals started regular-season and postseason games through this date, inclusive, using Eastern dates. Each season’s date can only move forward.</p><p class="small" id="mlbCutoffStatus" role="status"></p>
+</div><div class="panel settings-panel"><h3>Favorite teams</h3><div id="mlbFavoriteClubs" class="baseball-favorites"></div></div>
+</section>
+</main>
+<nav class="main-nav" aria-label="MLB navigation">
+<button class="nav-tab active" data-mlb-tab="Games" aria-current="page">Games</button><button class="nav-tab" data-mlb-tab="Best">Best Games</button><button class="nav-tab" data-mlb-tab="Schedule">Schedule</button><button class="nav-tab" data-mlb-tab="Standings">Standings</button><button class="nav-tab" data-mlb-tab="Settings">Settings</button>
+</nav>
+<dialog id="mlbDialog" aria-labelledby="mlbDialogTitle"><div class="dialog-inner">
+<form method="dialog"><button class="icon-button close" aria-label="Close game">×</button></form>
+<h2 id="mlbDialogTitle"></h2><p id="mlbDialogRating" class="rating-value"></p><div id="mlbDialogActions" class="baseball-controls"></div>
+<p id="mlbDialogStatus" class="small" role="status"></p><div id="mlbBox"></div>
+</div></dialog>
+</body>
+</html>
