@@ -1,4 +1,4 @@
-import {revealWeek,coveredByRevealWeek,revealChoices} from './reveal-policy.js?v=21';
+import {revealWeek,coveredByRevealWeek,revealChoices,completedSeason,championshipFinished} from './reveal-policy.js?v=23';
 import {initSchedule,normalizeFavorites} from './schedule.js?v=19';
 import {initSeasonStats} from './season-stats.js?v=17';
 import {rateGame,RATING_VERSION} from './rating.js';
@@ -69,7 +69,12 @@ $('bestPause').onclick=()=>{if(bestBusy)bestController?.abort();else loadBest();
 
 let statsController=null,statsGeneration=0,statsTab='overview',statsCategory='offense';
 const statsCache=new Map();
-function isRevealed(id){return user.revealed[id]===true||!!user.watched[id]||coveredByRevealWeek(selectedGame?.id===id?selectedGame:gameRegistry.get(id),user.revealThrough,current?.season);}
+function isRevealed(id){
+ const game=selectedGame?.id===id?selectedGame:gameRegistry.get(id);
+ return user.revealed[id]===true||!!user.watched[id]||
+  (game?.state==='post'&&completedSeason(game.season,current?.season??seasonYear(),current?.complete))||
+  coveredByRevealWeek(game,user.revealThrough,current?.season);
+}
 function observeGameState(id,state){
  if(selectedGame?.id===id&&(state!=='pre'||selectedGame.state==='pre'))selectedGame.state=state;
  if(!user.preGameReveals[id]||!['in','post'].includes(state))return;
@@ -183,12 +188,12 @@ async function initialize(){
  $('bestSeason').innerHTML=$('season').innerHTML;const sel=user.selection||current;$('season').value=String(sel.season);if(!$('season').value)$('season').value=String(year);$('seasonType').value=String(sel.type);if(!$('seasonType').value)$('seasonType').value='2';buildWeeks();$('week').value=String(sel.week);if(!$('week').value)$('week').value='1';
  $('bestSeason').value=$('season').value;scheduleDashboard=initSchedule({fetchJSON,year:current.season,selection:user.schedule,onSelection:value=>{user.schedule=value;saveUser();},parseGame:safeEvent,gameCard,stageLabel,cache,onCache:saveCache,getFavorites:()=>user.favorites,onFavoriteToggle:id=>{user.favorites=user.favorites.includes(id)?user.favorites.filter(team=>team!==id):[...user.favorites,id];saveUser();render();}});if(user.tab==='schedule')scheduleDashboard.activate();seasonDashboard=initSeasonStats({fetchJSON,year:current.season,week:current.type===2?current.week:18,selection:user.seasonStats,getWatched:id=>!!user.watched[id],onSelection:value=>{user.seasonStats=value;saveUser();}});if(user.tab==='stats')seasonDashboard.activate();else await loadWeek({newScope:true});if(user.tab==='best')loadBest();
 }
-function setTab(tab){if(tab==='watched')tab='schedule';if(!['games','best','schedule','stats','settings'].includes(tab))tab='games';user.tab=tab;saveUser();for(const name of ['games','best','schedule','stats','settings'])$(name+'View').classList.toggle('hidden',tab!==name);for(const b of document.querySelectorAll('[data-tab]')){b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');}if(tab==='stats')seasonDashboard?.activate();else seasonDashboard?.cancel();if(tab==='schedule'&&current)scheduleDashboard?.activate();else scheduleDashboard?.cancel();if(tab==='best'&&current){$('bestSeason').value=$('season').value;renderBest();loadBest();}if(tab==='games'&&current)loadWeek({newScope:true});if(tab==='settings'&&current)refreshCurrentSeason();}
+function setTab(tab){if(tab==='watched')tab='schedule';if(!['games','best','schedule','stats','settings'].includes(tab))tab='games';user.tab=tab;saveUser();for(const b of document.querySelectorAll('[data-refresh-tab]'))b.classList.toggle('hidden',b.dataset.refreshTab!==tab);for(const name of ['games','best','schedule','stats','settings'])$(name+'View').classList.toggle('hidden',tab!==name);for(const b of document.querySelectorAll('[data-tab]')){b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');}if(tab==='stats')seasonDashboard?.activate();else seasonDashboard?.cancel();if(tab==='schedule'&&current)scheduleDashboard?.activate();else scheduleDashboard?.cancel();if(tab==='best'&&current){$('bestSeason').value=$('season').value;renderBest();loadBest();}if(tab==='games'&&current)loadWeek({newScope:true});if(tab==='settings'&&current)refreshCurrentSeason();}
 let seasonRefresh;
 function refreshCurrentSeason(){
  if(!seasonRefresh)seasonRefresh=fetchJSON('scoreboard',AbortSignal.timeout(15000)).then(s=>{
   const season=Number(s.season?.year),type=Number(s.season?.type),week=Number(s.week?.number);
-  if(Number.isInteger(season)&&[1,2,3].includes(type)&&Number.isInteger(week)&&week>=0){const changed=current?.season!==season;current={season,type,week};syncRevealSetting();if(changed)render();}
+  if(Number.isInteger(season)&&[1,2,3].includes(type)&&Number.isInteger(week)&&week>=0){const complete=(current?.season===season&&current.complete===true)||championshipFinished(s,'nfl',season),changed=current?.season!==season||current?.complete!==complete;current={season,type,week,complete};syncRevealSetting();if(changed)render();}
  }).catch(()=>{}).finally(()=>{seasonRefresh=null;});
  return seasonRefresh;
 }

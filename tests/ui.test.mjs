@@ -67,5 +67,11 @@ test('app modal locks/restores scrolling and grouped tabs; season tab handles cu
   reveal.onclick();await settle();assert.equal(JSON.parse(storage.get('football-user-v1')).revealed['301'],true);assert.equal(JSON.parse(storage.get('football-user-v1')).preGameReveals['301'],undefined);assert.equal(document.getElementById('statsPanel').classList.contains('hidden'),false);modal.close();
   open('303');await document.getElementById('refreshStats').onclick();await settle();assert(document.getElementById('statsPanel').classList.contains('hidden'));assert.equal(reveal.classList.contains('hidden'),false);assert.equal(JSON.parse(storage.get('football-user-v1')).revealed['303'],undefined);reveal.onclick();await settle();assert.equal(JSON.parse(storage.get('football-user-v1')).revealed['303'],true);assert.equal(JSON.parse(storage.get('football-user-v1')).preGameReveals['303'],undefined);modal.close();
   revealSelect.value='1';revealSelect.onchange();assert.deepEqual(revealSelect.options.map(o=>o.value),['1','2']);revealSelect.value='2';revealSelect.onchange();assert.deepEqual(revealSelect.options.map(o=>o.value),['2']);revealSelect.value='0';revealSelect.onchange();assert.equal(revealSelect.value,'2');assert.equal(JSON.parse(storage.get('football-user-v1')).revealThrough.week,2);feedWeek=3;document.querySelector('[data-tab="settings"]').dispatchEvent(new dom.Event('click',{bubbles:true}));await settle();assert.deepEqual(revealSelect.options.map(o=>o.value),['2','3']);assert.equal(revealSelect.value,'2');
+  assert(document.getElementById('refresh').classList.contains('hidden'));
+  specialEvents=[event('499',3,2025)];resultState='post';resultScores=['21','7'];
+  document.getElementById('season').value='2025';document.querySelector('[data-tab="games"]').dispatchEvent(new dom.Event('click',{bubbles:true}));await settle();
+  assert(!document.getElementById('refresh').classList.contains('hidden'));
+  assert.match(document.querySelector('#gameList [data-game="499"] .card-score').textContent,/SF 21 · DAL 7/);
+  assert.equal(JSON.parse(storage.get('football-user-v1')).watched['499'],undefined);
  }finally{globalThis.setInterval=interval;}
 });

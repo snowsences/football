@@ -21,18 +21,23 @@ test('a low-scoring nail-biter can outrank a blowout, without exposing outcome o
 });
 test('date reveal is inclusive, season-specific, forward only, and leaves spring training and unstarted games hidden',()=>{
  const g=readGame(event()),prefs={cutoffs:{2025:'2025-09-06'}};
+ assert(revealAllowed(g,{},2026));
+ assert(revealAllowed(g,{},2025,true));
+ assert(!revealAllowed(g,{},2025,false));
+ assert(!revealAllowed({...g,state:'upcoming'}, {},2026));
  assert.deepEqual(g.teams.map(t=>t.id),DEFAULT_FAVORITES);
- assert(revealAllowed(g,prefs));
- assert(!revealAllowed({...g,season:2026},prefs));
- assert(!revealAllowed({...g,stage:1},prefs));
- assert(!revealAllowed({...g,day:'2025-09-07'},prefs));
- assert(!revealAllowed({...g,state:'upcoming'},prefs));
+ assert(revealAllowed(g,prefs,2025));
+ assert(!revealAllowed({...g,season:2026},prefs,2025));
+ assert(!revealAllowed({...g,stage:1},prefs,2025));
+ assert(!revealAllowed({...g,day:'2025-09-07'},prefs,2025));
+ assert(!revealAllowed({...g,state:'upcoming'},prefs,2025));
  assert.equal(gameDay('2025-09-07T02:00:00Z'),'2025-09-06');
  assert.equal(advanceCutoff('2025-09-06','2025-09-01',2025,'2025-09-07'),'2025-09-06');
  assert.equal(advanceCutoff('2025-09-06','2025-09-08',2025,'2025-09-07'),'2025-09-06');
  assert.equal(advanceCutoff('2025-09-06','2025-09-07',2025,'2025-09-07'),'2025-09-07');
 });
-test('MLB UI keeps scores and standings gated, pins Rangers and Mariners, and ranks a date window',async()=>{
+test('MLB UI keeps scores and standings gated, pins Rangers and Mariners, and ranks a date window',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2025-09-07T12:00:00Z')});
  const {document,window}=parseHTML(await readFile(new URL('../baseball.html',import.meta.url),'utf8'));
  const proto=Object.getPrototypeOf(document.createElement('select'));
  Object.defineProperty(proto,'value',{get(){return [...this.querySelectorAll('option')].find(o=>o.hasAttribute('selected'))?.value||this.querySelector('option')?.value||'';},set(value){for(const o of this.querySelectorAll('option'))o.toggleAttribute('selected',o.value===String(value));}});
@@ -69,8 +74,10 @@ test('MLB UI keeps scores and standings gated, pins Rangers and Mariners, and ra
   assert.equal($('mlbGameList').children.length,1);
   click(document.querySelector('[data-mlb-tab="Standings"]'));
   assert.equal($('mlbStandingsList').textContent,'');
+  assert($('mlbRefresh').classList.contains('hidden'));
   assert(!requests.some(u=>u.pathname.endsWith('/standings')));
   $('mlbStandingsYear').value='2025';await $('mlbShowStandings').onclick();
+  assert.equal($('mlbRefresh').getAttribute('aria-label'),'Refresh MLB standings');
   assert.match($('mlbStandingsList').textContent,/American League West.*Seattle Mariners.*91/);
   $('mlbSeason').value='2025';click(document.querySelector('[data-mlb-tab="Schedule"]'));await settle();
   assert.equal($('mlbScheduleList').children.length,1);

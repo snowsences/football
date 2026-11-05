@@ -1,4 +1,5 @@
-import {CLUBS,DEFAULT_FAVORITES,esc,gameDay,shiftDay,validDay,team,readGame,revealAllowed,advanceCutoff,rateBaseball,eachLimit} from './baseball-data.js?v=22';
+import {championshipFinished} from './reveal-policy.js?v=23';
+import {CLUBS,DEFAULT_FAVORITES,esc,gameDay,shiftDay,validDay,team,readGame,revealAllowed,advanceCutoff,rateBaseball,eachLimit} from './baseball-data.js?v=23';
 
 const $=id=>document.getElementById(id);
 const SITE='https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/';
@@ -12,8 +13,9 @@ document.documentElement.dataset.theme=nflPrefs.theme==='light'?'light':'dark';
 const save=()=>writeStorage(key,prefs);
 const ratings=new Map(Object.entries(readStorage(ratingKey))),liveRatings=new Map(),details=new Map();
 const lists={Games:[],Best:[],Schedule:[]};
-let tab='Games',viewRequest,boxRequest,selected=null;
+let tab='Games',viewRequest,boxRequest,selected=null,finishedYear,standingsRevealed=false;
 const nowYear=()=>Number(gameDay().slice(0,4));
+const revealed=g=>revealAllowed(g,prefs,nowYear(),finishedYear===nowYear());
 const dateFormat=new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',timeZone:'America/New_York'});
 const timeFormat=new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'});
 const numeric=(a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id);
@@ -22,6 +24,14 @@ async function fetchJSON(url,signal){
  const r=await fetch(url,{signal:signal?AbortSignal.any([signal,deadline]):deadline,cache:'no-store'});
  if(!r.ok)throw Error('Feed unavailable');
  return r.json();
+}
+function observeSeason(feed){
+ const year=nowYear();
+ if(finishedYear===year||!championshipFinished(feed,'mlb',year))return;
+ finishedYear=year;
+ if(tab==='Settings')syncCutoff();
+ if(lists[tab])renderList(tab);
+ if(selected)showDetails();
 }
 function request(){
  viewRequest?.abort();viewRequest=new AbortController();return viewRequest.signal;
@@ -33,7 +43,7 @@ function rating(g){return g.state==='final'?ratings.get(g.id):g.state==='live'?l
 function latestDetails(g){const box=details.get(g.id)?.game;return box&&!(g.state==='final'&&box.state!=='final')?{...box,season:g.season,stage:g.stage}:g;}
 function logo(t){return t.logo?`<span class="team-badge team-logo"><img src="${esc(t.logo)}" alt="" width="46" height="46" loading="lazy"></span>`:'';}
 function card(game){
- const g=latestDetails(game),shown=revealAllowed(g,prefs),r=rating(g),[away,home]=g.teams;
+ const g=latestDetails(game),shown=revealed(g),r=rating(g),[away,home]=g.teams;
  const hasScore=shown&&g.teams.every(t=>scoreNumber(t.score));
  const status=g.state==='final'?'Final':g.state==='live'?'In progress':g.state==='unavailable'?'Delayed or unavailable':'Scheduled';
  return `<button class="game-card" data-mlb-game="${esc(g.id)}"><span class="game-date">${dateFormat.format(new Date(g.date))} · ${timeFormat.format(new Date(g.date))} · ${status}${prefs.watched[g.id]?' · Watched':''}</span><span class="game-teams">${[away,home].map((t,i)=>`${i?'<span class="small">at</span>':''}<span class="team">${logo(t)}<span class="team-name">${esc(t.name)}${shown&&t.record?` <small>(${esc(t.record)})</small>`:''}</span></span>`).join('')}</span><span class="rating-row${hasScore?' has-score':''}">${hasScore?`<span class="card-score">${esc(away.abbr)} ${esc(away.score)} · ${esc(home.abbr)} ${esc(home.score)}</span>`:''}${r!=null?`<span class="rating-value">${r.toFixed(1)}<span class="small"> /10${g.state==='live'?' · Live':''}</span></span>`:`<span class="small">${g.state==='live'||g.state==='final'?'Rating unavailable':''}</span>`}</span></button>`;
@@ -54,6 +64,7 @@ async function scoreboard(start,end=start,signal){
  await eachLimit(days,4,async day=>{
   const d=await fetchJSON(SITE+'scoreboard?dates='+day.replaceAll('-','')+'&limit=1000',signal);
   if(!Array.isArray(d.events))throw Error('Schedule unavailable');
+  if(!signal?.aborted)observeSeason(d);
   for(const g of d.events.map(readGame))if(g&&g.day>=start&&g.day<=end)games.set(g.id,g);
  },signal);
  return [...games.values()];
@@ -157,6 +168,7 @@ function table(headers,rows){
  return `<div class="stats-table-scroll" tabindex="0"><table class="stats-table"><thead><tr>${headers.map((x,i)=>`<th scope="col"${i?'':' class="stat-name"'}>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr><th scope="row" class="stat-name">${esc(row[0])}</th>${row.slice(1).map(v=>`<td>${esc(v??'—')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 async function loadStandings(){
+ standingsRevealed=true;syncRefresh();
  const signal=request(),year=Number($('mlbStandingsYear').value),el=$('mlbStandingsList');
  el.innerHTML='';error('mlbStandingsStatus','Loading standings…');
  try{
@@ -178,7 +190,7 @@ async function loadStandings(){
  }catch{if(!signal.aborted)error('mlbStandingsStatus','Could not load standings. Try again.');}
 }
 function boxHTML(g,summary){
- if(!revealAllowed(g,prefs))return '';
+ if(!revealed(g))return '';
  const lines=Math.max(...g.teams.map(t=>t.innings.length));
  const inningTable=lines?table(['Team',...Array.from({length:lines},(_,i)=>i+1),'R','H','E'],g.teams.map(t=>[t.abbr,...Array.from({length:lines},(_,i)=>t.innings[i]),t.score,t.hits,t.errors])):'';
  const players=(summary?.boxscore?.players||[]).flatMap(t=>(t.statistics||[]).filter(s=>['batting','pitching'].includes(s.type)&&s.athletes?.length).map(s=>{
@@ -188,7 +200,7 @@ function boxHTML(g,summary){
  return `<p class="card-score">${g.teams.map(t=>`${esc(t.abbr)} ${scoreNumber(t.score)?esc(t.score):'—'}`).join(' · ')}</p><p class="small">${esc(g.detail|| (g.state==='final'?'Final':'In progress'))}</p>${inningTable}${players}`;
 }
 function renderDialog(){
- const g=latestDetails(selected),started=g.state==='live'||g.state==='final',shown=revealAllowed(g,prefs);
+ const g=latestDetails(selected),started=g.state==='live'||g.state==='final',shown=revealed(g);
  $('mlbDialogTitle').textContent=g.teams.map(t=>t.name).join(' at ');
  $('mlbDialogActions').innerHTML=started?`${shown?'':'<button class="button primary" id="mlbReveal">Reveal score &amp; stats</button>'}${g.state==='final'?`<label class="baseball-check"><input id="mlbWatched" type="checkbox" ${prefs.watched[g.id]?'checked':''}> Watched</label>`:''}`:'';
  $('mlbBox').innerHTML=shown?boxHTML(g,details.get(g.id)?.summary):'';
@@ -203,7 +215,7 @@ async function showDetails({force=false}={}){
  if(!selected)return;
  boxRequest?.abort();
  renderDialog();
- const game=latestDetails(selected),id=game.id,shown=revealAllowed(game,prefs);
+ const game=latestDetails(selected),id=game.id,shown=revealed(game);
  if((!shown&&((game.state!=='final'&&game.state!=='live')||rating(game)!=null))||(!force&&game.state==='final'&&details.get(id)?.game.state==='final'))return;
  boxRequest=new AbortController();const {signal}=boxRequest;
  error('mlbDialogStatus',shown?'Loading box score…':'Checking spoiler-free rating…');
@@ -223,7 +235,12 @@ function syncCutoff(){
  const year=$('mlbCutoffYear').value,today=gameDay(),cutoff=prefs.cutoffs[year];
  $('mlbCutoff').min=cutoff||year+'-01-01';$('mlbCutoff').max=year===String(nowYear())?today:year+'-12-31';
  $('mlbCutoff').value=cutoff||'';
- error('mlbCutoffStatus',cutoff?`Scores revealed through ${cutoff}.`:'No date selected for this season.');
+ error('mlbCutoffStatus',Number(year)<nowYear()||Number(year)===finishedYear?'Scores for this completed season are revealed.':cutoff?`Scores revealed through ${cutoff}.`:'No date selected for this season.');
+}
+function syncRefresh(){
+ const button=$('mlbRefresh'),label='Refresh '+({Games:'MLB games',Best:'best games',Schedule:'MLB schedule',Standings:'MLB standings'}[tab]||'');
+ button.classList.toggle('hidden',tab==='Settings'||(tab==='Standings'&&!standingsRevealed));
+ button.setAttribute('aria-label',label);button.title=label;
 }
 function setTab(next){
  viewRequest?.abort();tab=next;
@@ -234,8 +251,9 @@ function setTab(next){
  }
  if(tab==='Games')loadGames();
  if(tab==='Schedule')loadSchedule();
- if(tab==='Standings'){$('mlbStandingsList').innerHTML='';error('mlbStandingsStatus','Standings include results beyond your reveal date.');}
+ if(tab==='Standings'){standingsRevealed=false;$('mlbStandingsList').innerHTML='';error('mlbStandingsStatus','Standings include results beyond your reveal date.');}
  if(tab==='Settings')syncCutoff();
+ syncRefresh();
 }
 
 const today=gameDay();
@@ -250,7 +268,7 @@ $('mlbPrev').onclick=()=>{$('mlbDate').value=shiftDay($('mlbDate').value||gameDa
 $('mlbNext').onclick=()=>{$('mlbDate').value=shiftDay($('mlbDate').value||gameDay(),1);loadGames();};
 $('mlbToday').onclick=()=>{$('mlbDate').value=gameDay();loadGames();};
 $('mlbLatest').onclick=()=>loadGames(gameDay(),{latest:true});
-$('mlbRefresh').onclick=()=>loadGames();
+$('mlbRefresh').onclick=()=>({Games:loadGames,Best:loadBest,Schedule:loadSchedule,Standings:standingsRevealed?loadStandings:null}[tab]?.());
 $('mlbRank').onclick=()=>loadBest();
 $('mlbBestFavorites').onchange=()=>renderList('Best');
 $('mlbTeam').onchange=()=>{prefs.scheduleTeam=$('mlbTeam').value;save();renderTeams();loadSchedule();};
@@ -258,7 +276,7 @@ $('mlbTeamFavorite').onclick=()=>setFavorite(prefs.scheduleTeam,!prefs.favorites
 $('mlbSeason').onchange=()=>loadSchedule();
 $('mlbJump').onclick=()=>{const g=nextGame();if(g)document.querySelector(`#mlbScheduleList [data-mlb-game="${g.id}"]`)?.scrollIntoView({block:'center'});};
 $('mlbShowStandings').onclick=()=>loadStandings();
-$('mlbStandingsYear').onchange=()=>{viewRequest?.abort();$('mlbStandingsList').innerHTML='';error('mlbStandingsStatus','Standings include results beyond your reveal date.');};
+$('mlbStandingsYear').onchange=()=>{standingsRevealed=false;syncRefresh();viewRequest?.abort();$('mlbStandingsList').innerHTML='';error('mlbStandingsStatus','Standings include results beyond your reveal date.');};
 $('mlbCutoffYear').onchange=syncCutoff;
 $('mlbSaveCutoff').onclick=()=>{
  const year=$('mlbCutoffYear').value,previous=prefs.cutoffs[year],day=$('mlbCutoff').value;
@@ -281,4 +299,5 @@ setInterval(()=>{
  else if(tab==='Games'&&$('mlbDate').value===gameDay())loadGames();
 },60000);
 renderTeams();syncCutoff();loadGames();
+fetchJSON(SITE+'scoreboard').then(observeSeason).catch(()=>{});
 navigator.serviceWorker?.register('./sw.js').catch(()=>{});

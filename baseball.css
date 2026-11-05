@@ -1,4 +1,4 @@
-.sport-switch{display:flex;gap:6px;margin:0 0 24px;width:max-content;padding:4px;background:var(--soft);border-radius:12px}
+.sport-switch{display:flex;gap:6px;margin:0;width:max-content;padding:4px;background:var(--soft);border-radius:12px}
 .sport-switch a{display:block;color:var(--muted);text-decoration:none;padding:8px 20px;border-radius:8px;font-weight:600}
 .sport-switch a[aria-current="page"]{color:var(--ink);background:var(--surface)}
 .baseball-controls{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
@@ -19,3 +19,4 @@
 html:has(#mlbDialog[open]){overflow:hidden}
 
 #mlbDialogRating:empty{display:none}
+.sport-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}

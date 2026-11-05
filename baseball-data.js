@@ -1,3 +1,4 @@
+import {completedSeason} from './reveal-policy.js?v=23';
 export const DEFAULT_FAVORITES=['13','12'];
 export const CLUBS=[
  ['29','Diamondbacks'],['11','Athletics'],['15','Braves'],['1','Orioles'],['2','Red Sox'],['16','Cubs'],['4','White Sox'],['17','Reds'],['5','Guardians'],['27','Rockies'],['6','Tigers'],['18','Astros'],['7','Royals'],['3','Angels'],['19','Dodgers'],['28','Marlins'],['8','Brewers'],['9','Twins'],['21','Mets'],['10','Yankees'],['22','Phillies'],['23','Pirates'],['25','Padres'],['26','Giants'],['12','Mariners'],['24','Cardinals'],['30','Rays'],['13','Rangers'],['14','Blue Jays'],['20','Nationals']
@@ -32,10 +33,10 @@ export function readGame(event){
  const state=status.completed&&status.state==='post'&&!/cancel|postpon|suspend/i.test(status.name||'')?'final':status.state==='in'?'live':/cancel|postpon|suspend|delay/i.test(status.name||'')?'unavailable':'upcoming';
  return {id,date,day,teams,state,season:Number(event.season?.year??day.slice(0,4)),stage:Number(event.seasonType?.type??event.season?.type??0),detail:status.shortDetail||status.description||''};
 }
-export function revealAllowed(game,prefs){
+export function revealAllowed(game,prefs,activeYear=Number(gameDay().slice(0,4)),activeComplete=false){
  if(game.state!=='final'&&game.state!=='live')return false;
  const cutoff=prefs.cutoffs?.[game.season];
- return !!(prefs.revealed?.[game.id]||prefs.watched?.[game.id]||(game.stage!==1&&validDay(cutoff)&&game.day<=cutoff));
+ return !!((game.state==='final'&&completedSeason(game.season,activeYear,activeComplete))||prefs.revealed?.[game.id]||prefs.watched?.[game.id]||(game.stage!==1&&validDay(cutoff)&&game.day<=cutoff));
 }
 export function advanceCutoff(previous,next,year,today){
  return validDay(next)&&next.startsWith(year+'-')&&next<=today&&(!validDay(previous)||next>=previous)?next:previous;
